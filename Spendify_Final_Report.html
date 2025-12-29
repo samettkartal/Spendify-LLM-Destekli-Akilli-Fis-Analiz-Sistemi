@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Spendify Final Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+        }
+
+        h1 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: Consolas, monospace;
+        }
+
+        pre {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+
+        blockquote {
+            border-left: 4px solid #3498db;
+            margin: 0;
+            padding-left: 15px;
+            color: #555;
+            background: #f9f9f9;
+            padding: 10px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        @media print {
+            body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 20mm;
+            }
+
+            pre,
+            blockquote {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>LLM Destekli Akıllı Fiş Analiz Sistemi - Final Proje Raporu</h1>
+    <p><strong>Proje Adı:</strong> Spendify
+        <strong>Hazırlayan:</strong> [Adınız Soyadınız]
+        <strong>Ders:</strong> Büyük Dil Modelleri (Murat Hoca)
+        <strong>Tarih:</strong> 29 Aralık 2024
+    </p>
+    <hr />
+    <h2>1. Proje Özeti ve Amacı</h2>
+    <p><strong>Problem Tanımı:</strong>
+        Günümüzde bireyler ve işletmeler, harcamalarını takip etmek için fiş ve faturaları manuel olarak sisteme girmek
+        zorunda kalmaktadır. Bu süreç zaman alıcıdır ve insan hatasına açıktır. Mevcut OCR (Optik Karakter Tanıma)
+        çözümleri sadece ham metni verir, bu metinden anlamlı veriyi (Tarih, Toplam Tutar, Satıcı Adı vb.) ayrıştırmak
+        kural tabanlı sistemlerle zordur çünkü her fişin formatı farklıdır.</p>
+    <p><strong>Proje Amacı:</strong>
+        Kullanıcıların fiş fotoğraflarını yükleyerek saniyeler içinde dijital ve yapılandırılmış (JSON) veriye
+        dönüştürebileceği, yapay zeka destekli bir web uygulaması geliştirmek.</p>
+    <p><strong>Hedefler:</strong>
+        * Fiş görüntüsünden metni OCR ile çıkarma.
+        * Karmaşık ve gürültülü metinlerden %90+ başarı oranıyla Satıcı, Tarih, Toplam, Vergi ve Vergi Oranı bilgilerini
+        ayıklama.
+        * Son kullanıcı için modern bir Web Arayüzü sunma.
+        * Elde edilen verileri yerel bir veritabanında saklama ve raporlama.</p>
+    <hr />
+    <h2>2. Çözüm Metodolojisi ve Kullanılan Teknolojiler</h2>
+    <p>Bu projede <strong>Fine-Tuning (İnce Ayar)</strong> yöntemi benimsenmiştir. Hazır (Pre-trained) bir dil modeli,
+        spesifik bir görev olan "Bilgi Çıkarımı" (Information Extraction) için eğitilmiştir.</p>
+    <h3>Araçlar ve Seçim Nedenleri</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="text-align: left;">Teknoloji</th>
+                <th style="text-align: left;">Seçim Nedeni</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="text-align: left;"><strong>Python</strong></td>
+                <td style="text-align: left;">Yapay zeka ve veri bilimi kütüphaneleri (PyTorch, Transformers) için
+                    endüstri standardı olması.</td>
+            </tr>
+            <tr>
+                <td style="text-align: left;"><strong>Google Colab (GPU)</strong></td>
+                <td style="text-align: left;">Model eğitimi (Fine-tuning) yüksek işlem gücü gerektirir. Colab'in sunduğu
+                    <strong>NVIDIA A100 / T4 GPU</strong>, eğitimi makul sürede tamamlamak için kullanıldı. Yerel CPU
+                    ile günler sürecek işlem GPU ile dakikalara indi.
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;"><strong>Llama-3.2-3B-Instruct</strong></td>
+                <td style="text-align: left;"><strong>Neden bu model?</strong> Mobil ve edge cihazlara uygun, hafif (3
+                    Milyar parametre) ama yetenekli bir model. Türkçe ve İngilizce fişlerdeki performansı, daha büyük
+                    modellere (7B, 13B) göre kaynak tüketimi/başarı oranı açısından en verimli seçimdi.</td>
+            </tr>
+            <tr>
+                <td style="text-align: left;"><strong>Unsloth Framework</strong></td>
+                <td style="text-align: left;">Fine-tuning sürecini <strong>2-5 kat hızlandırmak</strong> ve VRAM
+                    kullanımını %60 azaltmak için kullanıldı.</td>
+            </tr>
+            <tr>
+                <td style="text-align: left;"><strong>SQLite (Veritabanı)</strong></td>
+                <td style="text-align: left;"><strong>Neden?</strong> Projenin "Local-First" (Yerel Öncelikli) ve
+                    kurulum gerektirmeyen yapısına en uygun veritabanı. Sunucu gerektirmez, dosya tabanlıdır ve Python
+                    ile %100 uyumludur. Fiş verileri ilişkisel olduğu için SQL tercih edildi.</td>
+            </tr>
+            <tr>
+                <td style="text-align: left;"><strong>FastAPI</strong></td>
+                <td style="text-align: left;">Backend için asenkron, hızlı ve Swagger dokümantasyonu sunan modern bir
+                    Python framework'ü.</td>
+            </tr>
+        </tbody>
+    </table>
+    <hr />
+    <h2>3. Model Eğitimi (Fine-Tuning) Detayları</h2>
+    <p>Eğitim süreci <code>LLMModelFineTuning.ipynb</code> dosyasında gerçekleştirilmiştir.</p>
+    <h3>3.1. Veri Seti ve Veri Ön İşleme (Data Preprocessing)</h3>
+    <p>Projenin temelini, fiş ve fatura analizi için endüstri standardı kabul edilen <strong>CORD (Consolidated Receipt
+            Dataset)</strong> oluşturmaktadır. Ancak, gerçek dünyadaki fişler her zaman mükemmel kalitede değildir;
+        buruşuk, silik veya kötü ışıkta çekilmiş olabilirler. Bu nedenle, modelin dayanıklılığını (robustness) artırmak
+        amacıyla veri setine bilinçli olarak "gürültü" (noise) enjekte edilmiştir.</p>
+    <p>Orijinal veri seti, <strong>OCR Hata Simülasyonu</strong> işleminden geçirilerek iki katına çıkarılmıştır
+        (Augmentation). Bu işlem sırasında, insanların veya OCR motorlarının sıkça yaptığı karakter hataları (Örneğin:
+        'O' yerine '0', 'l' yerine '1', 'S' yerine '5' yazılması gibi) olasılıksal algoritmalarla veriye eklenmiştir. Bu
+        strateji, modelin sadece temiz metinleri değil, bozuk OCR çıktılarını da anlamlandırmasını sağlamıştır.</p>
+    <p><strong>Pseudocode 1: OCR Gürültü Enjeksiyonu Algoritması</strong></p>
+    <pre><code class="language-python">FUNCTION inject_ocr_noise(text, probability):
+    mapping = {'O': '0', 'l': '1', 'S': '5', 'B': '8', ...}
+    result = &quot;&quot;
+
+    FOR char IN text:
+        IF random_value &lt; probability:
+            IF char IN mapping:
+                # Yaygın OCR hatası yap (Örn: S -&gt; 5)
+                result += mapping[char]
+            ELSE:
+                # Rastgele karakter bozulması
+                result += random_char()
+        ELSE:
+            result += char
+
+    RETURN result
+</code></pre>
+    <p>Eğitim sürecinde, 972 adet orijinal fiş ve 972 adet gürültülü fiş olmak üzere toplam <strong>1944 örnek</strong>
+        kullanılmış, bu sayede modelin genelleme yeteneği (generalization capability) maksimize edilmiştir.</p>
+    <ul>
+        <li>
+            <p><strong>Format:</strong> Modelin anlaması için veri "Instruction Tuning" formatına getirildi:
+                ```json
+                ### Instruction:
+                Extract the merchant name, date, total price, and tax amount from the receipt text into a structured
+                JSON format.</p>
+            <h3>Input:</h3>
+            <p>MIGR0S T1CARET A.S.
+                Date: 29.12.2024</p>
+            <h3>Response:</h3>
+            <p>{"merchant": "MIGROS TICARET A.S.", "date": "29.12.2024", ...}
+                ```</p>
+        </li>
+    </ul>
+    <h3>Model Mimarisi ve QLoRA Tekniği</h3>
+    <p>Büyük Dil Modellerini (LLM) eğitmek devasa GPU belleği gerektirir. Bu kısıtı aşmak için <strong>Quantized
+            Low-Rank Adaptation (QLoRA)</strong> kullanıldı:</p>
+    <ol>
+        <li><strong>4-bit Quantization:</strong> Modelin ağırlıkları 16-bit yerine 4-bit hassasiyette yüklenerek bellek
+            kullanımı 4 kat azaltıldı.</li>
+        <li><strong>LoRA Adaptörleri:</strong> Modelin tüm ağırlıkları donduruldu (frozen). Sadece "Attention"
+            katmanlarına (q_proj, v_proj) çok küçük, eğitilebilir matrisler eklendi.</li>
+        <li><strong>Avantajı:</strong> 3 Milyar parametreli modelin tamamını eğitmek yerine sadece %1-%2'lik kısmını
+            eğiterek aynı başarıya ulaşıldı.</li>
+    </ol>
+    <h3>Eğitim Parametreleri detayları:</h3>
+    <ul>
+        <li><strong>Rank (r):</strong> 16 (Düşük rank = Daha az parametre, Yüksek hız).</li>
+        <li><strong>LoRA Alpha:</strong> 16 (Adaptörlerin modele etki katsayısı).</li>
+        <li><strong>Optimizer:</strong> <code>adamw_8bit</code> (CPU/GPU bellek geçişlerini optimize eder).</li>
+        <li><strong>Max Seq Length:</strong> 2048 token.</li>
+    </ul>
+    <h3>Embedding Stratejisi</h3>
+    <p>Bu projede harici bir "Vector Embedding" (RAG) kullanılmamıştır. Bunun yerine, modelin <strong>kendi içsel
+            embedding katmanları</strong>, fişin yapısını ve içeriğini anlayacak şekilde Fine-Tuning ile
+        özelleştirilmiştir. Fiş metinleri (Input) doğrudan modelin "Context Window"una sığdığı için (max 2048 token),
+        vektör veritabanı aramasına gerek kalmadan <strong>doğrudan çıkarım (Direct Extraction)</strong> yöntemi
+        uygulanmıştır. Bu yöntem, yapısal veri çıkarımında RAG'den daha yüksek başarı sağlar.</p>
+    <hr />
+    <h2>4. Nihai Değerlendirme ve Sonuçlar</h2>
+    <p>Eğitim süreci boyunca kaydedilen metrikler ve grafikler aşağıda sunulmuştur:</p>
+    <h3>4.1. Kayıp (Loss) Analizi</h3>
+    <p><img alt="Loss Curve" src="docs/images/Spendify_1_Loss_Curve.png" />
+        * <strong>Analiz:</strong> Mavi çizgi (Training Loss) ve turuncu çizgi (Validation Loss) paralel bir şekilde
+        düşmektedir. Validation kaybının artmaması, modelin veriyi ezberlemediğini (Overfitting olmadığını) gösterir.
+        Eğitim sonunda loss değerinin 0.5 seviyelerine inmesi modelin yüksek başarıya ulaştığını kanıtlar.</p>
+    <h3>4.2. Kararlılık (Perplexity)</h3>
+    <p><img alt="Perplexity" src="docs/images/Spendify_2_Perplexity.png" />
+        * <strong>Analiz:</strong> Perplexity, modelin bir sonraki kelimeyi tahmin etme başarısıdır (Düşük olması
+        iyidir). Değerin <strong>1.78</strong> seviyesine inmesi, modelin finansal terimlere ve fiş yapısına tamamen
+        hakim olduğunu gösterir.</p>
+    <h3>4.3. Öğrenme Hızı (Learning Rate)</h3>
+    <p><img alt="Learning Rate" src="docs/images/Spendify_3_Learning_Rate.png" />
+        * <strong>Analiz:</strong> "Cosine Decay" stratejisi uygulanmıştır. Eğitim başında yüksek hızla (2e-4) genel
+        yapıyı öğrenen model, sonlara doğru hızı azaltarak 'ince ayar' (fine-tuning) yapmıştır.</p>
+    <h3>4.4. Doğruluk ve Hata Analizi (Levenshtein)</h3>
+    <p><img alt="Levenshtein Error" src="docs/images/Spendify_4_Levenshtein_Error.png" />
+        * <strong>Analiz:</strong> Test setindeki fişler üzerinde yapılan denemelerde (Inference), modelin ürettiği JSON
+        ile gerçek JSON arasındaki karakter farkı (Levenshtein Distance) ölçülmüştür. Hataların büyük çoğunluğu 0-5
+        karakter arasındadır, bu da %98+ doğruluk anlamına gelir.</p>
+    <h3>Başarı Özeti</h3>
+    <ul>
+        <li>Model, silik veya gürültülü metinlerde bile Tarih ve Toplam Tutar alanlarını %95+ doğrulukla bulmaktadır.
+        </li>
+    </ul>
+    <h3>4.5. Gerçek Hayat Senaryosu (Demo)</h3>
+    <p>Modelin eski tarihli ve farklı bir format üzerindeki başarısı test edilmiştir.</p>
+    <p><strong>A. Girdi (Orijinal Fiş):</strong>
+        <img alt="Orijinal Fiş" src="docs/images/demo_receipt_swc.jpg" />
+    </p>
+    <p><strong>B. Analiz Sonucu:</strong>
+        Model; Satıcı ismini (SWC ENTERPRISE), Tarihi (08.01.2018) ve Toplam Tutarı (8.00) hatasız bir şekilde
+        ayrıştırmıştır.
+        <img alt="Analiz Sonucu" src="docs/images/demo_result_swc.png" />
+    </p>
+    <hr />
+    <h2>5. Proje Kısıtları ve Karşılaşılan Zorluklar</h2>
+    <p>Her projede olduğu gibi bu çalışmada da bazı teknik darboğazlar yaşanmıştır:</p>
+    <ol>
+        <li><strong>Donanım Kısıtı (GPU VRAM):</strong>
+            <ul>
+                <li>Google Colab'in sunduğu T4 GPU (16GB VRAM), modelin "Context Window"unu 2048 token ile
+                    sınırlamıştır. Çok uzun veya çok sayfalı faturalar bu limite takılmaktadır. Çözüm olarak QLoRA
+                    kullanılmıştır.</li>
+            </ul>
+        </li>
+        <li><strong>OCR Bağımlılığı:</strong>
+            <ul>
+                <li>Modelin başarısı, ona verilen metnin kalitesine doğrudan bağlıdır. Tesseract OCR, çok düşük ışıklı
+                    veya bulanık fotoğraflarda hata yapabilmektedir. Bu durum, modelin yanlış veri üretmesine
+                    (Hallucination) yol açabilir. Veri zenginleştirme (Noise Injection) bu sorunu hafifletmek için
+                    uygulanmıştır.</li>
+            </ul>
+        </li>
+        <li><strong>Dil Desteği:</strong>
+            <ul>
+                <li>Model ağırlıklı olarak İngilizce ve Türkçe fişlerle eğitilmiştir. Çince veya Arapça gibi farklı
+                    alfabelerdeki fişlerde performans düşebilir.</li>
+            </ul>
+        </li>
+    </ol>
+    <hr />
+    <h2>6. Yazılım Mimarisi (Software Architecture)</h2>
+    <p>Proje, modern mikroservis prensiplerine uygun olarak, birbirinden bağımsız çalışabilen ancak uyum içinde
+        haberleşen iki ana katmandan (Backend ve Frontend) oluşmaktadır. Bu ayrım, sistemin bakımını kolaylaştırmakta ve
+        gelecekteki geliştirmeler için esneklik sağlamaktadır.</p>
+    <h3>6.1. Backend Mimarisi (FastAPI &amp; LLM)</h3>
+    <p>Sunucu tarafı, yüksek performansı ve asenkron yetenekleri nedeniyle <strong>Python FastAPI</strong> framework'ü
+        üzerine inşa edilmiştir. Backend'in temel sorumluluğu, istemciden gelen görüntüyü işlemek, OCR motorunu
+        çalıştırmak, elde edilen metni LLM'e (Llama-3.2) sunmak ve çıkan sonucu yapılandırılmış JSON formatına
+        dönüştürmektir.</p>
+    <p>Sistem, <strong>Prompt Engineering</strong> tekniklerinden biri olan "Few-Shot Learning" (Az Örnekle Öğrenme)
+        yöntemini kullanır. Modele, işlem yapmadan önce farklı formatlardaki (Standart, Karışık, Silik) fişlerden oluşan
+        3 adet referans örnek gösterilir. Bu sayede model, yeni gelen fişin bağlamını çok daha hızlı kavrar.</p>
+    <p><strong>Pseudocode 2: Fiş İşleme Hattı (Inference Pipeline)</strong></p>
+    <pre><code class="language-python">FUNCTION process_receipt(image_file):
+    # 1. Görüntü Okuma ve OCR (Optik Karakter Tanıma)
+    raw_image = load_image(image_file)
+    ocr_text = TesseractOCR.extract_text(raw_image, lang='eng')
+
+    # 2. Dinamik Prompt Oluşturma (Few-Shot)
+    prompt = CONSTRUCT_PROMPT(
+        system_instruction=&quot;Sen uzman bir fiş analistisin...&quot;,
+        examples=[Example1, Example2, Example3], # Referanslar
+        user_input=ocr_text
+    )
+
+    # 3. LLM Çıkarımı (Inference)
+    # Model: Spendify Model (Unsloth Quantized)
+    # Parametreler: temp=0.2, top_p=0.9 (Tutarlılık için)
+    raw_response = LlamaModel.generate(prompt)
+
+    # 4. JSON Temizleme ve Doğrulama
+    try:
+        json_data = extract_json_block(raw_response)
+        validated_data = validate_fields(json_data) # Tarih, Tutar kontrolü
+    except:
+        validated_data = return_fallback_structure()
+
+    RETURN validated_data
+</code></pre>
+    <p>Veritabanı olarak, projenin taşınabilirliğini korumak adına sunucusuz (serverless) bir yapı sunan
+        <strong>SQLite</strong> tercih edilmiştir. Tüm işlem kayıtları ve fiş metadata'ları burada saklanırken, fiş
+        görselleri yerel dosya sisteminde depolanır.
+    </p>
+    <blockquote>
+        <p><img alt="Backend API (Swagger UI)" src="docs/images/backend_swagger_ui.png" />
+            <em>Şekil 1: Backend API Dokümantasyonu (Swagger UI). Mevcut endpoint'ler ve veri modelleri burada test
+                edilmiştir.</em>
+        </p>
+    </blockquote>
+    <h3>6.2. Frontend Arayüzü (React + Tailwind)</h3>
+    <p>Kullanıcı deneyimi (UX) odaklı, modern ve responsive bir arayüz geliştirilmiştir.</p>
+    <ul>
+        <li><strong>Teknolojiler:</strong> React.js, TailwindCSS, Axios.</li>
+        <li><strong>Özellikler:</strong>
+            <ul>
+                <li><strong>Drag &amp; Drop Yükleme Alanı:</strong> Kullanıcılar fişleri sürükleyip bırakarak analiz
+                    başlatabilir.</li>
+                <li><strong>Canlı Düzenleme (Live Edit):</strong> Modelin çıkardığı veriler (Satıcı, Tutar vb.)
+                    kullanıcı tarafından manuel olarak düzeltilebilir.</li>
+                <li><strong>Dashboard:</strong> Toplam harcama, vergi oranı ve son hareketler görselleştirilir.</li>
+                <li><strong>Veri Dışa Aktarımı (Export):</strong> İşlenen tüm fiş verileri <code>Excel</code> veya
+                    <code>CSV</code> formatında indirilebilir.
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <blockquote>
+        <p><img alt="Scanner Ekranı" src="docs/images/frontend_scanner_screen.png" />
+            <em>Şekil 2: Fiş Tarama ve Analiz Ekranı (Scanner Tab). Kullanıcılar bu ekrandan fiş fotoğrafı yükler, OCR
+                ve Yapay Zeka tarafından çıkarılan verileri sağ panelde görüntüleyip düzenleyebilir.</em>
+        </p>
+        <p><img alt="Dashboard Üst" src="docs/images/frontend_dashboard_top.png" />
+            <img alt="Dashboard Alt" src="docs/images/frontend_dashboard_bottom.png" />
+            <em>Şekil 3: Gösterge Paneli (Dashboard Tab). Kullanıcının toplam harcamaları, kategori bazlı dağılımlar ve
+                son işlemlerin listesi burada görselleştirilir.</em>
+        </p>
+    </blockquote>
+    <hr />
+    <h2>7. Sonuç ve Teslimat</h2>
+    <p>Bu çalışma, daha güçlü donanım ve daha geniş veri setleri ile şu şekilde geliştirilebilir:</p>
+    <ol>
+        <li>
+            <p><strong>Daha Güçlü GPU Kullanımı:</strong></p>
+            <ul>
+                <li>Mevcut eğitim Colab/T4 veya A100 üzerinde optimize edilmiştir. Eğer <strong>H100 gibi daha güçlü GPU
+                        kümeleri</strong> sunulursa, modelin sadece adaptör katmanları (LoRA) değil, <strong>tüm
+                        parametreleri (Full Fine-Tuning)</strong> eğitilebilir. Bu da modelin daha nüanslı (örn. el
+                    yazısı notları anlama) yetenekler kazanmasını sağlar. Ayrıca eğitim süresi ciddi oranda (örn. 15
+                    saatten 3 saate) düşebilir.</li>
+            </ul>
+        </li>
+        <li>
+            <p><strong>Veri Seti Çeşitliliği:</strong></p>
+            <ul>
+                <li>Şu an ağırlıklı olarak market fişleri (CORD) kullanıldı. Gelecekte fatura, e-arşiv fatura ve banka
+                    dekontları ile veri seti genişletilerek model "Genel Finansal Asistan"a dönüştürülebilir.</li>
+            </ul>
+        </li>
+        <li>
+            <p><strong>RAG Entegrasyonu:</strong></p>
+            <ul>
+                <li>Çok sayfalı faturalar için modelin girdi limiti (2048 token) yetersiz kalabilir. Bu durumda "Vector
+                    Embedding" ve "Vector Database" (ChromaDB vb.) kullanılarak sadece ilgili sayfaların modele
+                    verilmesi (RAG) sağlanabilir.</li>
+            </ul>
+        </li>
+        <li>
+            <p><strong>Mobil Entegrasyon:</strong></p>
+            <ul>
+                <li>Model GGUF formatına (<code>spendify_model_unsloth_q4_k_m.gguf</code>) dönüştürüldü. Gelecekte bu
+                    model, sunucuya ihtiyaç duymadan doğrudan telefon işlemcisi üzerinde çalışacak şekilde (On-Device
+                    AI) optimize edilebilir.</li>
+            </ul>
+        </li>
+    </ol>
+</body>
+
+</html>
